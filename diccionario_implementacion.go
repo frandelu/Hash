@@ -168,3 +168,10 @@ func (dicc *diccionario[K, V]) Iterar(visitar func(clave K, dato V) bool) {
 	for i := 0; visitar(dicc.elementos[i].clave, dicc.elementos[i].dato) && i < dicc.capacidad; i++ {
 	}
 }
+
+//Primitivas del Iterador externo
+
+func (dicc *diccionario[K, V]) Iterador() iterDiccionario[K, V] {
+	iterador := new(iterDiccionario[K, V])
+	return *iterador
+}

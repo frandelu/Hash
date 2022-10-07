@@ -81,6 +81,15 @@ func redimension[K comparable, V any](dicc *diccionario[K, V]) {
 
 }
 
+func CrearHash[K comparable, V any]() diccionario[K, V] {
+	dicc := new(diccionario[K, V])
+	dicc.borrados = 0
+	dicc.cantidad = 0
+	dicc.capacidad = _CAP_INCIAL
+	dicc.elementos = make([]elemento[K, V], _CAP_INCIAL)
+	return *dicc
+}
+
 func (dicc *diccionario[K, V]) Guardar(clave K, dato V) {
 	redimension(dicc)
 	pos := calcularPos(clave, dicc.capacidad)

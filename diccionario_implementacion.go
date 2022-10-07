@@ -51,7 +51,6 @@ func convertirABytes[K comparable](clave K) []byte {
 
 func (dicc *diccionario[K, V]) calcularPos(clave K) uint64 {
 	pos := hash(convertirABytes(clave)) % uint64(dicc.capacidad)
-
 	for dicc.elementos[pos].estado != _VACIO {
 		if dicc.elementos[pos].clave == clave && dicc.elementos[pos].estado == _OCUPADO {
 			return pos
@@ -83,9 +82,11 @@ func (dicc *diccionario[K, V]) redimension() {
 	dicc.borrados = 0
 
 	for i := 0; i < vieja_cap; i++ {
+		if elementos[i].estado != _OCUPADO {
+			continue
+		}
 		pos := dicc.calcularPos(elementos[i].clave)
-		dicc.elementos[pos].estado = _OCUPADO
-		dicc.elementos[pos].dato = elementos[i].dato
+		dicc.elementos[pos] = elementos[i]
 	}
 }
 
@@ -139,16 +140,32 @@ func (dicc *diccionario[K, V]) Cantidad() int {
 }
 
 func (dicc *diccionario[K, V]) Iterar(visitar func(clave K, dato V) bool) {
-	for i := 0; visitar(dicc.elementos[i].clave, dicc.elementos[i].dato) && i < dicc.capacidad; i++ {
+	for i := 0; i < dicc.capacidad; i++ {
+		elem := dicc.elementos[i]
+		if elem.estado == _OCUPADO && !visitar(elem.clave, elem.dato) {
+			return
+		}
 	}
 }
 
 //Primitivas del Iterador externo
 
+func (iter *iterDiccionario[K, V]) buscarSiguiente() int {
+	for i := iter.pos_actual + 1; i < iter.dicc.capacidad; i++ {
+		if iter.dicc.elementos[i].estado == _OCUPADO {
+			return i
+		}
+	}
+	return iter.dicc.capacidad
+}
+
 func (dicc *diccionario[K, V]) Iterador() iterDiccionario[K, V] {
 	iterador := new(iterDiccionario[K, V])
 	iterador.dicc = *dicc
 	iterador.pos_actual = 0
+	if dicc.elementos[0].estado != _OCUPADO {
+		iterador.pos_actual = iterador.buscarSiguiente()
+	}
 	return *iterador
 }
 
@@ -173,9 +190,6 @@ func (iter *iterDiccionario[K, V]) Siguiente() K {
 		panic("El iterador termino de iterar")
 	}
 	clave_act := iter.dicc.elementos[iter.pos_actual].clave
-	iter.pos_actual++
-	for iter.dicc.elementos[iter.pos_actual].estado != _OCUPADO {
-		iter.pos_actual++
-	}
+	iter.pos_actual = iter.buscarSiguiente()
 	return clave_act
 }

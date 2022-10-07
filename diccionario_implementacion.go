@@ -11,12 +11,12 @@ const (
 	_VACIO           = 0
 	_OCUPADO         = 1
 	_BORRADO         = -1
-	_CAP_INCIAL      = 8
+	_CAP_INCIAL      = 32
 	_FACTOR_AGRANDAR = 2
 	_FACTOR_ACHICAR  = 4
 	_PORCENTAJE      = 100
-	_CARGA_MAX       = 25
-	_CARGA_MIN       = 5
+	_CARGA_MAX       = 65
+	_CARGA_MIN       = 20
 )
 
 type elemento[K comparable, V any] struct {

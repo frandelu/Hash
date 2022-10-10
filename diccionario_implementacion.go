@@ -1,8 +1,7 @@
 package diccionario
 
 import (
-	"bytes"
-	"encoding/gob"
+	"fmt"
 	"hash/fnv"
 	//Link de la funcion de hash https://pkg.go.dev/hash/fnv?utm_source=gopls
 )
@@ -140,10 +139,7 @@ func hash(clave []byte) uint64 {
 }
 
 func convertirABytes[K comparable](clave K) []byte {
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
-	enc.Encode(clave)
-	return buf.Bytes()
+	return []byte(fmt.Sprintf("%v", clave))
 }
 
 func (dicc *diccionario[K, V]) calcularPos(clave K) uint64 {

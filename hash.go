@@ -132,14 +132,14 @@ func (iter *iterDiccionario[K, V]) Siguiente() K {
 
 // Funciones / métodos auxiliares
 
+func convertirABytes[K comparable](clave K) []byte {
+	return []byte(fmt.Sprintf("%v", clave))
+}
+
 func hash(clave []byte) uint64 {
 	x := fnv.New64a()
 	x.Write(clave)
-	return (x.Sum64)()
-}
-
-func convertirABytes[K comparable](clave K) []byte {
-	return []byte(fmt.Sprintf("%v", clave))
+	return x.Sum64()
 }
 
 func (dicc *diccionario[K, V]) calcularPos(clave K) uint64 {

@@ -32,9 +32,106 @@ type diccionario[K comparable, V any] struct {
 }
 
 type iterDiccionario[K comparable, V any] struct {
-	dicc       diccionario[K, V]
+	dicc       *diccionario[K, V]
 	pos_actual int
 }
+
+func CrearHash[K comparable, V any]() Diccionario[K, V] {
+	dicc := new(diccionario[K, V])
+	dicc.capacidad = _CAP_INCIAL
+	dicc.elementos = make([]elemento[K, V], _CAP_INCIAL)
+	return dicc
+}
+
+// Primitivas Diccionario
+
+func (dicc *diccionario[K, V]) Guardar(clave K, dato V) {
+	dicc.redimension()
+	pos := dicc.calcularPos(clave)
+	if dicc.elementos[pos].estado == _VACIO {
+		dicc.cantidad++
+	}
+	dicc.elementos[pos].estado = _OCUPADO
+	dicc.elementos[pos].clave = clave
+	dicc.elementos[pos].dato = dato
+}
+
+func (dicc *diccionario[K, V]) Pertenece(clave K) bool {
+	pos := dicc.calcularPos(clave)
+	return dicc.elementos[pos].estado == _OCUPADO
+}
+
+func (dicc *diccionario[K, V]) Obtener(clave K) V {
+	if !dicc.Pertenece(clave) {
+		panic("La clave no pertenece al diccionario")
+	}
+	pos := dicc.calcularPos(clave)
+	return dicc.elementos[pos].dato
+}
+
+func (dicc *diccionario[K, V]) Borrar(clave K) V {
+	dicc.redimension()
+	if !dicc.Pertenece(clave) {
+		panic("La clave no pertenece al diccionario")
+	}
+	pos := dicc.calcularPos(clave)
+	dicc.elementos[pos].estado = _BORRADO
+	dicc.cantidad--
+	dicc.borrados++
+	return dicc.elementos[pos].dato
+}
+
+func (dicc *diccionario[K, V]) Cantidad() int {
+	return dicc.cantidad
+}
+
+func (dicc *diccionario[K, V]) Iterar(visitar func(clave K, dato V) bool) {
+	for i := 0; i < dicc.capacidad; i++ {
+		elem := dicc.elementos[i]
+		if elem.estado == _OCUPADO && !visitar(elem.clave, elem.dato) {
+			return
+		}
+	}
+}
+
+func (dicc *diccionario[K, V]) Iterador() IterDiccionario[K, V] {
+	iterador := new(iterDiccionario[K, V])
+	iterador.dicc = dicc
+	iterador.pos_actual = 0
+	if dicc.elementos[0].estado != _OCUPADO {
+		iterador.pos_actual = iterador.buscarSiguiente()
+	}
+	return iterador
+}
+
+//Primitivas de IterDiccionario
+
+func (iter *iterDiccionario[K, V]) HaySiguiente() bool {
+	for i := iter.pos_actual; i < iter.dicc.capacidad; i++ {
+		if iter.dicc.elementos[i].estado == _OCUPADO {
+			return true
+		}
+	}
+	return false
+}
+
+func (iter *iterDiccionario[K, V]) VerActual() (K, V) {
+	if !iter.HaySiguiente() {
+		panic("El iterador termino de iterar")
+	}
+	return iter.dicc.elementos[iter.pos_actual].clave, iter.dicc.elementos[iter.pos_actual].dato
+}
+
+func (iter *iterDiccionario[K, V]) Siguiente() K {
+	if !iter.HaySiguiente() {
+		panic("El iterador termino de iterar")
+	}
+	clave_act := iter.dicc.elementos[iter.pos_actual].clave
+	iter.pos_actual = iter.buscarSiguiente()
+	return clave_act
+}
+
+// Funciones / métodos auxiliares
 
 func hash(clave []byte) uint64 {
 	x := fnv.New64a()
@@ -90,66 +187,6 @@ func (dicc *diccionario[K, V]) redimension() {
 	}
 }
 
-func CrearHash[K comparable, V any]() diccionario[K, V] {
-	dicc := new(diccionario[K, V])
-	dicc.borrados = 0
-	dicc.cantidad = 0
-	dicc.capacidad = _CAP_INCIAL
-	dicc.elementos = make([]elemento[K, V], _CAP_INCIAL)
-	return *dicc
-}
-
-func (dicc *diccionario[K, V]) Guardar(clave K, dato V) {
-	dicc.redimension()
-	pos := dicc.calcularPos(clave)
-	if dicc.elementos[pos].estado == _VACIO {
-		dicc.cantidad++
-	}
-	dicc.elementos[pos].estado = _OCUPADO
-	dicc.elementos[pos].clave = clave
-	dicc.elementos[pos].dato = dato
-}
-
-func (dicc *diccionario[K, V]) Pertenece(clave K) bool {
-	pos := dicc.calcularPos(clave)
-	return dicc.elementos[pos].estado == _OCUPADO
-}
-
-func (dicc *diccionario[K, V]) Obtener(clave K) V {
-	if !dicc.Pertenece(clave) {
-		panic("La clave no pertenece al diccionario")
-	}
-	pos := dicc.calcularPos(clave)
-	return dicc.elementos[pos].dato
-}
-
-func (dicc *diccionario[K, V]) Borrar(clave K) V {
-	dicc.redimension()
-	if !dicc.Pertenece(clave) {
-		panic("La clave no pertenece al diccionario")
-	}
-	pos := dicc.calcularPos(clave)
-	dicc.elementos[pos].estado = _BORRADO
-	dicc.cantidad--
-	dicc.borrados++
-	return dicc.elementos[pos].dato
-}
-
-func (dicc *diccionario[K, V]) Cantidad() int {
-	return dicc.cantidad
-}
-
-func (dicc *diccionario[K, V]) Iterar(visitar func(clave K, dato V) bool) {
-	for i := 0; i < dicc.capacidad; i++ {
-		elem := dicc.elementos[i]
-		if elem.estado == _OCUPADO && !visitar(elem.clave, elem.dato) {
-			return
-		}
-	}
-}
-
-//Primitivas del Iterador externo
-
 func (iter *iterDiccionario[K, V]) buscarSiguiente() int {
 	for i := iter.pos_actual + 1; i < iter.dicc.capacidad; i++ {
 		if iter.dicc.elementos[i].estado == _OCUPADO {
@@ -157,39 +194,4 @@ func (iter *iterDiccionario[K, V]) buscarSiguiente() int {
 		}
 	}
 	return iter.dicc.capacidad
-}
-
-func (dicc *diccionario[K, V]) Iterador() iterDiccionario[K, V] {
-	iterador := new(iterDiccionario[K, V])
-	iterador.dicc = *dicc
-	iterador.pos_actual = 0
-	if dicc.elementos[0].estado != _OCUPADO {
-		iterador.pos_actual = iterador.buscarSiguiente()
-	}
-	return *iterador
-}
-
-func (iter *iterDiccionario[K, V]) HaySiguiente() bool {
-	for i := iter.pos_actual; i < iter.dicc.capacidad; i++ {
-		if iter.dicc.elementos[i].estado == _OCUPADO {
-			return true
-		}
-	}
-	return false
-}
-
-func (iter *iterDiccionario[K, V]) VerActual() (K, V) {
-	if !iter.HaySiguiente() {
-		panic("El iterador termino de iterar")
-	}
-	return iter.dicc.elementos[iter.pos_actual].clave, iter.dicc.elementos[iter.pos_actual].dato
-}
-
-func (iter *iterDiccionario[K, V]) Siguiente() K {
-	if !iter.HaySiguiente() {
-		panic("El iterador termino de iterar")
-	}
-	clave_act := iter.dicc.elementos[iter.pos_actual].clave
-	iter.pos_actual = iter.buscarSiguiente()
-	return clave_act
 }

@@ -7,15 +7,14 @@ import (
 )
 
 const (
-	_VACIO           = 0
-	_OCUPADO         = 1
-	_BORRADO         = -1
-	_CAP_INCIAL      = 32
-	_FACTOR_AGRANDAR = 2
-	_FACTOR_ACHICAR  = 4
-	_PORCENTAJE      = 100
-	_CARGA_MAX       = 65
-	_CARGA_MIN       = 20
+	_VACIO = iota
+	_OCUPADO
+	_BORRADO
+
+	_CAP_INCIAL   = 32
+	_FACTOR_REDIM = 2
+	_CARGA_MAX    = 75
+	_CARGA_MIN    = 20
 )
 
 type elemento[K comparable, V any] struct {
@@ -23,7 +22,7 @@ type elemento[K comparable, V any] struct {
 	clave  K
 	dato   V
 }
-type diccionario[K comparable, V any] struct {
+type hashCerrado[K comparable, V any] struct {
 	elementos []elemento[K, V]
 	capacidad int
 	cantidad  int
@@ -31,12 +30,12 @@ type diccionario[K comparable, V any] struct {
 }
 
 type iterDiccionario[K comparable, V any] struct {
-	dicc       *diccionario[K, V]
+	dicc       *hashCerrado[K, V]
 	pos_actual int
 }
 
 func CrearHash[K comparable, V any]() Diccionario[K, V] {
-	dicc := new(diccionario[K, V])
+	dicc := new(hashCerrado[K, V])
 	dicc.capacidad = _CAP_INCIAL
 	dicc.elementos = make([]elemento[K, V], _CAP_INCIAL)
 	return dicc
@@ -44,8 +43,16 @@ func CrearHash[K comparable, V any]() Diccionario[K, V] {
 
 // Primitivas Diccionario
 
-func (dicc *diccionario[K, V]) Guardar(clave K, dato V) {
-	dicc.redimension()
+func (dicc *hashCerrado[K, V]) Guardar(clave K, dato V) {
+	carga := ((dicc.cantidad + dicc.borrados) * 100) / dicc.capacidad
+	if carga > _CARGA_MAX {
+		dicc.redimension(dicc.capacidad * _FACTOR_REDIM)
+	} else if carga < _CARGA_MIN {
+		dicc.redimension(dicc.capacidad / _FACTOR_REDIM)
+		if _CAP_INCIAL > dicc.capacidad {
+			dicc.redimension(dicc.capacidad)
+		}
+	}
 	pos := dicc.calcularPos(clave)
 	if dicc.elementos[pos].estado == _VACIO {
 		dicc.cantidad++
@@ -55,36 +62,46 @@ func (dicc *diccionario[K, V]) Guardar(clave K, dato V) {
 	dicc.elementos[pos].dato = dato
 }
 
-func (dicc *diccionario[K, V]) Pertenece(clave K) bool {
+func (dicc *hashCerrado[K, V]) Pertenece(clave K) bool {
 	pos := dicc.calcularPos(clave)
 	return dicc.elementos[pos].estado == _OCUPADO
 }
 
-func (dicc *diccionario[K, V]) Obtener(clave K) V {
-	if !dicc.Pertenece(clave) {
+func (dicc *hashCerrado[K, V]) Obtener(clave K) V {
+	pos := dicc.calcularPos(clave)
+	if dicc.elementos[pos].estado == _OCUPADO {
+		return dicc.elementos[pos].dato
+	} else {
 		panic("La clave no pertenece al diccionario")
 	}
+}
+
+func (dicc *hashCerrado[K, V]) Borrar(clave K) V {
+	carga := ((dicc.cantidad + dicc.borrados) * 100) / dicc.capacidad
+	if carga > _CARGA_MAX {
+		dicc.redimension(dicc.capacidad * _FACTOR_REDIM)
+	} else if carga < _CARGA_MIN {
+		dicc.redimension(dicc.capacidad / _FACTOR_REDIM)
+		if _CAP_INCIAL > dicc.capacidad {
+			dicc.redimension(dicc.capacidad)
+		}
+	}
 	pos := dicc.calcularPos(clave)
+	if dicc.elementos[pos].estado == _OCUPADO {
+		dicc.elementos[pos].estado = _BORRADO
+		dicc.cantidad--
+		dicc.borrados++
+	} else {
+		panic("La clave no pertenece al diccionario")
+	}
 	return dicc.elementos[pos].dato
 }
 
-func (dicc *diccionario[K, V]) Borrar(clave K) V {
-	dicc.redimension()
-	if !dicc.Pertenece(clave) {
-		panic("La clave no pertenece al diccionario")
-	}
-	pos := dicc.calcularPos(clave)
-	dicc.elementos[pos].estado = _BORRADO
-	dicc.cantidad--
-	dicc.borrados++
-	return dicc.elementos[pos].dato
-}
-
-func (dicc *diccionario[K, V]) Cantidad() int {
+func (dicc *hashCerrado[K, V]) Cantidad() int {
 	return dicc.cantidad
 }
 
-func (dicc *diccionario[K, V]) Iterar(visitar func(clave K, dato V) bool) {
+func (dicc *hashCerrado[K, V]) Iterar(visitar func(clave K, dato V) bool) {
 	for i := 0; i < dicc.capacidad; i++ {
 		elem := dicc.elementos[i]
 		if elem.estado == _OCUPADO && !visitar(elem.clave, elem.dato) {
@@ -93,7 +110,7 @@ func (dicc *diccionario[K, V]) Iterar(visitar func(clave K, dato V) bool) {
 	}
 }
 
-func (dicc *diccionario[K, V]) Iterador() IterDiccionario[K, V] {
+func (dicc *hashCerrado[K, V]) Iterador() IterDiccionario[K, V] {
 	iterador := new(iterDiccionario[K, V])
 	iterador.dicc = dicc
 	iterador.pos_actual = 0
@@ -106,12 +123,13 @@ func (dicc *diccionario[K, V]) Iterador() IterDiccionario[K, V] {
 //Primitivas de IterDiccionario
 
 func (iter *iterDiccionario[K, V]) HaySiguiente() bool {
-	for i := iter.pos_actual; i < iter.dicc.capacidad; i++ {
+	/*for i := iter.pos_actual; i < iter.dicc.capacidad; i++ {
 		if iter.dicc.elementos[i].estado == _OCUPADO {
 			return true
 		}
 	}
-	return false
+	return false*/
+	return iter.pos_actual != iter.dicc.capacidad
 }
 
 func (iter *iterDiccionario[K, V]) VerActual() (K, V) {
@@ -122,7 +140,7 @@ func (iter *iterDiccionario[K, V]) VerActual() (K, V) {
 }
 
 func (iter *iterDiccionario[K, V]) Siguiente() K {
-	if !iter.HaySiguiente() {
+	if iter.pos_actual == iter.dicc.capacidad {
 		panic("El iterador termino de iterar")
 	}
 	clave_act := iter.dicc.elementos[iter.pos_actual].clave
@@ -142,7 +160,7 @@ func hash(clave []byte) uint64 {
 	return x.Sum64()
 }
 
-func (dicc *diccionario[K, V]) calcularPos(clave K) uint64 {
+func (dicc *hashCerrado[K, V]) calcularPos(clave K) uint64 {
 	pos := hash(convertirABytes(clave)) % uint64(dicc.capacidad)
 	for dicc.elementos[pos].estado != _VACIO {
 		if dicc.elementos[pos].clave == clave && dicc.elementos[pos].estado == _OCUPADO {
@@ -157,23 +175,12 @@ func (dicc *diccionario[K, V]) calcularPos(clave K) uint64 {
 	return pos
 }
 
-func (dicc *diccionario[K, V]) redimension() {
-	carga := ((dicc.cantidad + dicc.borrados) * _PORCENTAJE) / dicc.capacidad
+func (dicc *hashCerrado[K, V]) redimension(nueva_cap int) {
 	vieja_cap := dicc.capacidad
-	if carga > _CARGA_MAX {
-		dicc.capacidad *= _FACTOR_AGRANDAR
-	} else if carga < _CARGA_MIN {
-		dicc.capacidad /= _FACTOR_ACHICAR
-		if _CAP_INCIAL > dicc.capacidad {
-			dicc.capacidad = _CAP_INCIAL
-		}
-	} else {
-		return
-	}
 	elementos := dicc.elementos
-	dicc.elementos = make([]elemento[K, V], dicc.capacidad)
+	dicc.elementos = make([]elemento[K, V], nueva_cap)
 	dicc.borrados = 0
-
+	dicc.capacidad = nueva_cap
 	for i := 0; i < vieja_cap; i++ {
 		if elementos[i].estado != _OCUPADO {
 			continue

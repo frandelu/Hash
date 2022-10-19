@@ -29,7 +29,7 @@ type hashCerrado[K comparable, V any] struct {
 	borrados  int
 }
 
-type iterDiccionario[K comparable, V any] struct {
+type iterHashCerrado[K comparable, V any] struct {
 	dicc       *hashCerrado[K, V]
 	pos_actual int
 }
@@ -47,11 +47,6 @@ func (dicc *hashCerrado[K, V]) Guardar(clave K, dato V) {
 	carga := ((dicc.cantidad + dicc.borrados) * 100) / dicc.capacidad
 	if carga > _CARGA_MAX {
 		dicc.redimension(dicc.capacidad * _FACTOR_REDIM)
-	} else if carga < _CARGA_MIN {
-		dicc.redimension(dicc.capacidad / _FACTOR_REDIM)
-		if _CAP_INCIAL > dicc.capacidad {
-			dicc.redimension(dicc.capacidad)
-		}
 	}
 	pos := dicc.calcularPos(clave)
 	if dicc.elementos[pos].estado == _VACIO {
@@ -77,14 +72,9 @@ func (dicc *hashCerrado[K, V]) Obtener(clave K) V {
 }
 
 func (dicc *hashCerrado[K, V]) Borrar(clave K) V {
-	carga := ((dicc.cantidad + dicc.borrados) * 100) / dicc.capacidad
-	if carga > _CARGA_MAX {
-		dicc.redimension(dicc.capacidad * _FACTOR_REDIM)
-	} else if carga < _CARGA_MIN {
+	carga := (dicc.cantidad * 100) / dicc.capacidad
+	if carga < _CARGA_MIN && dicc.capacidad > _CAP_INCIAL {
 		dicc.redimension(dicc.capacidad / _FACTOR_REDIM)
-		if _CAP_INCIAL > dicc.capacidad {
-			dicc.redimension(dicc.capacidad)
-		}
 	}
 	pos := dicc.calcularPos(clave)
 	if dicc.elementos[pos].estado == _OCUPADO {
@@ -111,7 +101,7 @@ func (dicc *hashCerrado[K, V]) Iterar(visitar func(clave K, dato V) bool) {
 }
 
 func (dicc *hashCerrado[K, V]) Iterador() IterDiccionario[K, V] {
-	iterador := new(iterDiccionario[K, V])
+	iterador := new(iterHashCerrado[K, V])
 	iterador.dicc = dicc
 	iterador.pos_actual = 0
 	if dicc.elementos[0].estado != _OCUPADO {
@@ -122,7 +112,7 @@ func (dicc *hashCerrado[K, V]) Iterador() IterDiccionario[K, V] {
 
 //Primitivas de IterDiccionario
 
-func (iter *iterDiccionario[K, V]) HaySiguiente() bool {
+func (iter *iterHashCerrado[K, V]) HaySiguiente() bool {
 	/*for i := iter.pos_actual; i < iter.dicc.capacidad; i++ {
 		if iter.dicc.elementos[i].estado == _OCUPADO {
 			return true
@@ -132,14 +122,14 @@ func (iter *iterDiccionario[K, V]) HaySiguiente() bool {
 	return iter.pos_actual != iter.dicc.capacidad
 }
 
-func (iter *iterDiccionario[K, V]) VerActual() (K, V) {
+func (iter *iterHashCerrado[K, V]) VerActual() (K, V) {
 	if !iter.HaySiguiente() {
 		panic("El iterador termino de iterar")
 	}
 	return iter.dicc.elementos[iter.pos_actual].clave, iter.dicc.elementos[iter.pos_actual].dato
 }
 
-func (iter *iterDiccionario[K, V]) Siguiente() K {
+func (iter *iterHashCerrado[K, V]) Siguiente() K {
 	if iter.pos_actual == iter.dicc.capacidad {
 		panic("El iterador termino de iterar")
 	}
@@ -190,7 +180,7 @@ func (dicc *hashCerrado[K, V]) redimension(nueva_cap int) {
 	}
 }
 
-func (iter *iterDiccionario[K, V]) buscarSiguiente() int {
+func (iter *iterHashCerrado[K, V]) buscarSiguiente() int {
 	for i := iter.pos_actual + 1; i < iter.dicc.capacidad; i++ {
 		if iter.dicc.elementos[i].estado == _OCUPADO {
 			return i
